@@ -1,5 +1,6 @@
-// Composes Twitter images from raw iPhone Duo simulator captures: a drawn Duo frame in front of the
-// same pages, enlarged and blurred. Run from the repository root:  swift marketing/compose.swift
+// Composes Twitter images from raw iPhone Duo simulator captures: the Duo, drawn from the simulator's own
+// device artwork, in front of the same pages enlarged and blurred.
+// Run from the repository root:  swift marketing/compose.swift
 import AppKit
 import SwiftUI
 
@@ -15,174 +16,196 @@ func load(_ name: String) -> NSImage {
     return image
 }
 
-// MARK: - Device parts
+// MARK: - Device
 
-/// Graphite edge band, lit from above.
-let rimGradient = LinearGradient(
-    stops: [
-        .init(color: Color(white: 0.62), location: 0),
-        .init(color: Color(white: 0.26), location: 0.18),
-        .init(color: Color(white: 0.12), location: 0.5),
-        .init(color: Color(white: 0.30), location: 0.85),
-        .init(color: Color(white: 0.55), location: 1),
-    ],
-    startPoint: .top,
-    endPoint: .bottom
-)
+/// The iPhone Duo's chrome as Xcode's DeviceKit ships it (vector PDFs), with sizes from its chrome.json and
+/// the device type's display corner radii. Units are device points.
+enum Duo {
+    static let chromeDirectory = URL(fileURLWithPath: "/Library/Developer/DeviceKit/Chrome/phone15.devicechrome/Contents/Resources")
 
-struct Button3D: View {
-    var length: CGFloat
-    var thickness: CGFloat = 4
-    var vertical = true
+    static func artwork(_ name: String) -> NSImage {
+        guard let image = NSImage(contentsOf: chromeDirectory.appending(path: "\(name).pdf")) else {
+            fatalError("Missing Duo chrome \(name).pdf; install the iOS 27.1 simulator runtime")
+        }
+        return image
+    }
 
-    var body: some View {
-        Capsule()
-            .fill(LinearGradient(
-                colors: [Color(white: 0.55), Color(white: 0.2), Color(white: 0.4)],
-                startPoint: vertical ? .leading : .top,
-                endPoint: vertical ? .trailing : .bottom
-            ))
-            .frame(width: vertical ? thickness : length, height: vertical ? length : thickness)
+    static let body = artwork("PhoneComposite")
+    static let volumeButton = artwork("Vol BTN")
+    static let powerButton = artwork("X_Power BTN")
+
+    /// The closed phone. The back half peeks out along the hinge on the leading edge.
+    static let half = CGSize(width: 514, height: 706)
+    static let outerScreen = CGRect(x: 26, y: 14, width: 466, height: 678)
+    static let innerScreen = CGSize(width: 951, height: 669)
+    /// The front half alone, without the back half's edge. Open, two of these meet at the hinge, where their
+    /// small corner radii leave the notch DeviceHub shows at the top and bottom.
+    static let frontWidth: CGFloat = 502.5
+    static var open: CGSize { CGSize(width: frontWidth * 2, height: half.height) }
+
+    static let volumeOffsets: [CGFloat] = [236, 316]
+    static let volumeSize = CGSize(width: 66, height: 16)
+    static let sideButtons: [(y: CGFloat, height: CGFloat)] = [(202, 113), (460, 102)]
+    static let buttonWidth: CGFloat = 16
+    /// How far a button stands out from the body.
+    static let buttonRise: CGFloat = 3.5
+}
+
+/// Positions a view by its top-leading corner inside a fixed-size frame.
+extension View {
+    func place(_ rect: CGRect, scale s: CGFloat) -> some View {
+        frame(width: rect.width * s, height: rect.height * s)
+            .offset(x: rect.minX * s, y: rect.minY * s)
     }
 }
 
-/// The Duo open flat: the inner screen inside a thin black border and a graphite rim, with the hinge seam
-/// showing at the middle of the top and bottom edges.
-struct OpenDuo: View {
-    let screen: NSImage
-    let width: CGFloat
+/// The buttons on the half that carries the outer screen: volume on the top edge, two on the outer side.
+/// They sit behind the body and stand out by `buttonRise`.
+struct DuoButtons: View {
+    /// Where the closed-phone artwork for this half starts.
+    let halfOriginX: CGFloat
+    let scale: CGFloat
 
     var body: some View {
-        let height = width * 669 / 951
-        let screenRadius = width * 36 / 951
-        let bezel = width * 0.017
-        let rim = width * 0.0055
-        let inner = screenRadius + bezel
-        let outer = inner + rim
-        let total = CGSize(width: width + 2 * (bezel + rim), height: height + 2 * (bezel + rim))
-
-        ZStack {
-            RoundedRectangle(cornerRadius: outer, style: .continuous).fill(rimGradient)
-            RoundedRectangle(cornerRadius: inner, style: .continuous)
-                .fill(Color.black)
-                .padding(rim)
-            Image(nsImage: screen)
-                .resizable()
-                .interpolation(.high)
-                .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: screenRadius, style: .continuous))
-            // Hinge seam where the two halves meet.
-            VStack {
-                seam(depth: rim + bezel * 0.6)
-                Spacer()
-                seam(depth: rim + bezel * 0.6)
+        let rightEdge = halfOriginX + Duo.half.width
+        ZStack(alignment: .topLeading) {
+            ForEach(Duo.volumeOffsets, id: \.self) { x in
+                Image(nsImage: Duo.volumeButton)
+                    .resizable()
+                    .place(CGRect(x: halfOriginX + x, y: 1 - Duo.buttonRise, width: Duo.volumeSize.width, height: Duo.volumeSize.height), scale: scale)
             }
-            // A faint sheen across the glass.
-            RoundedRectangle(cornerRadius: inner, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [.white.opacity(0.07), .clear, .clear, .white.opacity(0.03)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .padding(rim)
-                .allowsHitTesting(false)
-        }
-        .frame(width: total.width, height: total.height)
-        .background(alignment: .trailing) {
-            VStack(spacing: total.height * 0.07) {
-                Button3D(length: total.height * 0.13)
-                Button3D(length: total.height * 0.08)
+            ForEach(Duo.sideButtons, id: \.y) { button in
+                Image(nsImage: Duo.powerButton)
+                    .resizable()
+                    .place(CGRect(x: rightEdge - 1 + Duo.buttonRise - Duo.buttonWidth, y: button.y, width: Duo.buttonWidth, height: button.height), scale: scale)
             }
-            .offset(x: 2.5, y: -total.height * 0.12)
         }
-        .background(alignment: .topTrailing) {
-            HStack(spacing: total.width * 0.012) {
-                Button3D(length: total.width * 0.04, vertical: false)
-                Button3D(length: total.width * 0.025, vertical: false)
-            }
-            .offset(x: -total.width * 0.09, y: -2.5)
-        }
-    }
-
-    private func seam(depth: CGFloat) -> some View {
-        Rectangle()
-            .fill(LinearGradient(colors: [Color(white: 0.02), Color(white: 0.18), Color(white: 0.02)], startPoint: .leading, endPoint: .trailing))
-            .frame(width: 3, height: depth)
     }
 }
 
-/// The Duo closed: the outer screen, with the folded spine along the leading edge.
 struct ClosedDuo: View {
     let screen: NSImage
-    let width: CGFloat
+    let scale: CGFloat
 
     var body: some View {
-        let height = width * 678 / 466
-        let screenRadius = width * 36 / 466
-        let bezel = width * 0.034
-        let rim = width * 0.011
-        let inner = screenRadius + bezel
-        let outer = inner + rim
-        let spine = width * 0.035
-        let total = CGSize(width: width + 2 * (bezel + rim), height: height + 2 * (bezel + rim))
-
-        ZStack {
-            RoundedRectangle(cornerRadius: outer, style: .continuous).fill(rimGradient)
-            RoundedRectangle(cornerRadius: inner, style: .continuous)
-                .fill(Color.black)
-                .padding(rim)
+        let s = scale
+        ZStack(alignment: .topLeading) {
+            DuoButtons(halfOriginX: 0, scale: s)
+            Image(nsImage: Duo.body)
+                .resizable()
+                .place(CGRect(origin: .zero, size: Duo.half), scale: s)
             Image(nsImage: screen)
                 .resizable()
                 .interpolation(.high)
-                .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: screenRadius, style: .continuous))
-            RoundedRectangle(cornerRadius: inner, style: .continuous)
-                .fill(LinearGradient(colors: [.white.opacity(0.08), .clear, .clear], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .padding(rim)
-        }
-        .frame(width: total.width, height: total.height)
-        // The rounded spine of the folded hinge.
-        .background(alignment: .leading) {
-            RoundedRectangle(cornerRadius: spine, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [Color(white: 0.08), Color(white: 0.45), Color(white: 0.2), Color(white: 0.05)],
-                    startPoint: .leading,
-                    endPoint: .trailing
+                .clipShape(UnevenRoundedRectangle(
+                    topLeadingRadius: 8 * s,
+                    bottomLeadingRadius: 8 * s,
+                    bottomTrailingRadius: 59 * s,
+                    topTrailingRadius: 59 * s,
+                    style: .continuous
                 ))
-                .frame(width: spine * 2, height: total.height * 0.96)
-                .offset(x: -spine * 0.8)
+                .place(Duo.outerScreen, scale: s)
         }
-        .background(alignment: .trailing) {
-            VStack(spacing: total.height * 0.05) {
-                Button3D(length: total.height * 0.12, thickness: 5)
-                Button3D(length: total.height * 0.07, thickness: 5)
-            }
-            .offset(x: 3, y: -total.height * 0.18)
-        }
+        .frame(width: Duo.half.width * s, height: Duo.half.height * s, alignment: .topLeading)
     }
 }
 
-/// The Duo half open in the book posture: each half turns about the hinge toward the viewer.
-struct BookDuo: View {
+struct OpenDuo: View {
     let screen: NSImage
-    let width: CGFloat
-    let angle: Double
+    let scale: CGFloat
+    /// 0 is flat. Above 0, the left half is folded away from the viewer: blurred and shaded, as DeviceHub
+    /// shows the Duo part-closed.
+    var fold: Double = 0
 
     var body: some View {
-        let device = OpenDuo(screen: screen, width: width)
-        let totalWidth = width * (1 + 2 * (0.017 + 0.0055))
-        let half = totalWidth / 2
-        HStack(spacing: 0) {
-            device
-                .frame(width: half, alignment: .leading)
+        let s = scale
+        let size = Duo.open
+        let spine = Duo.half.width - Duo.frontWidth
+        let screenRect = CGRect(
+            x: (size.width - Duo.innerScreen.width) / 2,
+            y: (size.height - Duo.innerScreen.height) / 2,
+            width: Duo.innerScreen.width,
+            height: Duo.innerScreen.height
+        )
+        let screenShape = RoundedRectangle(cornerRadius: 55 * s, style: .continuous)
+
+        ZStack(alignment: .topLeading) {
+            DuoButtons(halfOriginX: Duo.frontWidth - spine, scale: s)
+            // Left half: the artwork mirrored, keeping only the front half.
+            Image(nsImage: Duo.body)
+                .resizable()
+                .frame(width: Duo.half.width * s, height: Duo.half.height * s)
+                .scaleEffect(x: -1, y: 1)
+                .frame(width: Duo.frontWidth * s, alignment: .leading)
                 .clipped()
-                .overlay(LinearGradient(colors: [.clear, .black.opacity(0.18)], startPoint: .leading, endPoint: .trailing))
-                .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0), anchor: .trailing, perspective: 0.55)
-            device
-                .frame(width: half, alignment: .trailing)
+            // Right half, the one with the buttons.
+            Image(nsImage: Duo.body)
+                .resizable()
+                .frame(width: Duo.half.width * s, height: Duo.half.height * s)
+                .frame(width: Duo.frontWidth * s, alignment: .trailing)
                 .clipped()
-                .overlay(LinearGradient(colors: [.black.opacity(0.28), .black.opacity(0.06)], startPoint: .leading, endPoint: .trailing))
-                .rotation3DEffect(.degrees(-angle), axis: (x: 0, y: 1, z: 0), anchor: .leading, perspective: 0.55)
+                .offset(x: Duo.frontWidth * s)
+            // The artwork's cutout is shaped for the outer screen; open, the black border runs unbroken
+            // around the inner screen and across the hinge.
+            RoundedRectangle(cornerRadius: 66 * s, style: .continuous)
+                .fill(Color.black)
+                .place(screenRect.insetBy(dx: -11, dy: -11), scale: s)
+            ZStack {
+                Image(nsImage: screen)
+                    .resizable()
+                    .interpolation(.high)
+                if fold > 0 {
+                    FoldedHalf(screen: screen, fold: fold, scale: s)
+                }
+            }
+            .clipShape(screenShape)
+            .place(screenRect, scale: s)
+        }
+        .frame(width: size.width * s, height: size.height * s, alignment: .topLeading)
+    }
+}
+
+/// The left half of the inner screen turned away from the viewer: out of focus, darker toward its outer edge
+/// and along the top and bottom where the panel bends away.
+struct FoldedHalf: View {
+    let screen: NSImage
+    let fold: Double
+    let scale: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let half = proxy.size.width / 2
+            ZStack(alignment: .leading) {
+                Image(nsImage: screen)
+                    .resizable()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .blur(radius: 9 * scale * fold, opaque: true)
+                    .frame(width: half, height: proxy.size.height, alignment: .leading)
+                    .clipped()
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0.88 * fold), location: 0),
+                        .init(color: .black.opacity(0.55 * fold), location: 0.25),
+                        .init(color: .black.opacity(0.15 * fold), location: 0.62),
+                        .init(color: .black.opacity(0.02 * fold), location: 1),
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: half)
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0.55 * fold), location: 0),
+                        .init(color: .clear, location: 0.22),
+                        .init(color: .clear, location: 0.78),
+                        .init(color: .black.opacity(0.55 * fold), location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: half)
+                .mask(LinearGradient(colors: [.black, .black.opacity(0.2)], startPoint: .leading, endPoint: .trailing))
+            }
         }
     }
 }
@@ -253,20 +276,21 @@ MainActor.assumeIsolated {
     let night = load("open-night-contents")
     let library = load("open-paper-library")
     let sepia = load("open-sepia-appearance")
-    // The real half-open capture (with the system's crease blur) when there is one.
-    let book = NSImage(contentsOf: raw.appending(path: "open-paper-book.png")) ?? hero
 
-    render(Shot(background: hero) { OpenDuo(screen: hero, width: 1010) }, to: "01-spread")
+    let single: CGFloat = 1.06 // the open Duo about 1060 pt wide on a 1600 pt canvas
 
+    render(Shot(background: hero) { OpenDuo(screen: hero, scale: single) }, to: "01-spread")
+
+    // Both phones at the same scale, so the closed one reads as the same device folded.
     render(Shot(background: pageThree) {
-        HStack(alignment: .center, spacing: 80) {
-            ClosedDuo(screen: closed, width: 430)
-            OpenDuo(screen: pageThree, width: 840)
+        HStack(alignment: .center, spacing: 70) {
+            ClosedDuo(screen: closed, scale: 0.92)
+            OpenDuo(screen: pageThree, scale: 0.92)
         }
     }, to: "02-fold")
 
-    render(Shot(background: night, tone: 0.1, glow: 0.16) { OpenDuo(screen: night, width: 1010) }, to: "03-contents")
-    render(Shot(background: hero) { OpenDuo(screen: library, width: 1010) }, to: "04-library")
-    render(Shot(background: sepia) { OpenDuo(screen: sepia, width: 1010) }, to: "05-appearance")
-    render(Shot(background: book) { BookDuo(screen: book, width: 1000, angle: 24) }, to: "06-book-posture")
+    render(Shot(background: night, tone: 0.1, glow: 0.16) { OpenDuo(screen: night, scale: single) }, to: "03-contents")
+    render(Shot(background: hero) { OpenDuo(screen: library, scale: single) }, to: "04-library")
+    render(Shot(background: sepia) { OpenDuo(screen: sepia, scale: single) }, to: "05-appearance")
+    render(Shot(background: hero) { OpenDuo(screen: hero, scale: single, fold: 1) }, to: "06-half-open")
 }
