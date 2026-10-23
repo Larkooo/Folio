@@ -254,7 +254,7 @@ MainActor.assumeIsolated {
 
     let hero = load("open-paper-hero")
     let heroWithControls = load("open-paper-chrome")
-    let closedWithControls = load("closed-paper-ch3-chrome")
+    let closed = load("closed-paper-ch3")
     let night = load("open-night-contents")
     let library = load("open-paper-library")
     let sepia = load("open-sepia-appearance")
@@ -267,10 +267,10 @@ MainActor.assumeIsolated {
     render(Shot(background: hero) { OpenDuo(screen: heroWithControls, scale: single) }, to: "01-spread")
 
     // Both phones at the same scale, so the closed one reads as the same device folded.
-    // The same page closed and open, both with the reader controls showing.
+    // The same page closed and open; only the open phone shows the reader controls.
     render(Shot(background: hero) {
         HStack(alignment: .center, spacing: 70) {
-            ClosedDuo(screen: closedWithControls, scale: 0.92)
+            ClosedDuo(screen: closed, scale: 0.92)
             OpenDuo(screen: heroWithControls, scale: 0.92)
         }
     }, to: "02-fold")
