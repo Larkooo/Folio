@@ -145,14 +145,15 @@ struct GutterShade: View {
     let openness: Double
 
     var body: some View {
-        let base = theme.isDark ? 0.32 : 0.075
-        let depth = base * (1 + (1 - openness) * 1.8)
+        // Kept faint: on the Duo the physical crease already marks the fold, so this only suggests a binding.
+        let base = theme.isDark ? 0.14 : 0.032
+        let depth = base * (1 + (1 - openness) * 1.5)
         LinearGradient(
             stops: [
                 .init(color: .black.opacity(0), location: 0),
-                .init(color: .black.opacity(depth * 0.35), location: 0.38),
+                .init(color: .black.opacity(depth * 0.4), location: 0.3),
                 .init(color: .black.opacity(depth), location: 0.5),
-                .init(color: .black.opacity(depth * 0.3), location: 0.6),
+                .init(color: .black.opacity(depth * 0.4), location: 0.7),
                 .init(color: .black.opacity(0), location: 1),
             ],
             startPoint: .leading,

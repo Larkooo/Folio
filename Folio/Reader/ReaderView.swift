@@ -109,9 +109,9 @@ struct ReaderView: View {
             }
             .overlay(alignment: .topLeading) {
                 GutterShade(theme: settings.theme, openness: fold.openness)
-                    .frame(width: metrics.fold.crease.width + 72)
+                    .frame(width: metrics.fold.crease.width + 120)
                     .frame(maxHeight: .infinity)
-                    .offset(x: metrics.fold.crease.minX - 36)
+                    .offset(x: metrics.fold.crease.minX - 60)
                     .ignoresSafeArea(edges: .vertical)
                     .allowsHitTesting(false)
             }
