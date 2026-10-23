@@ -292,5 +292,4 @@ MainActor.assumeIsolated {
     render(Shot(background: night, tone: 0.1, glow: 0.16) { OpenDuo(screen: night, scale: single) }, to: "03-contents")
     render(Shot(background: hero) { OpenDuo(screen: library, scale: single) }, to: "04-library")
     render(Shot(background: sepia) { OpenDuo(screen: sepia, scale: single) }, to: "05-appearance")
-    render(Shot(background: hero) { OpenDuo(screen: hero, scale: single, fold: 1) }, to: "06-half-open")
 }
