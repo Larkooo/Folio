@@ -8,6 +8,11 @@ A simple EPUB reader built for the iPhone Duo. Open, the inner display shows a t
 - `Folio/Reader`: reader screen, pager, page and spread views, Liquid Glass controls and panels, settings.
 - `Folio/Library`: library store (Application Support/Library, one folder per book) and library screens.
 - `Folio/Device`: fold handling. `FoldLayout` reads the system division region (`GeometryProxy.reservedRegions(kind: .division)`) and `HingeReader` reads `onHingeChange`; both need iOS 27.1. `DuoHarness` simulates the Duo on older simulators.
+- `Folio/App`: a UIKit scene delegate hosts the SwiftUI root so `RootHostingController` can set `preferredVerticalBarBehavior`. The library keeps the Duo's vertical status bar; while a book is open it is disabled, which returns the status bar to the top edge and gives pages the full width of the outer screen (396 pt of text instead of 324 pt).
+
+## iPhone Duo simulator
+
+The iPhone Duo simulator needs the iOS 27.1 runtime. Xcode 27 replaces Simulator.app with DeviceHub (`Xcode.app/Contents/Applications/DeviceHub.app`); folding and unfolding the device is done from its window. `simctl` has no fold command.
 - `tools/make_sample_epub.py` builds the bundled sample book; `tools/make_icon.swift` draws the app icon.
 
 ## Debug launch flags
@@ -23,6 +28,7 @@ Pass these to `simctl launch` with a `SIMCTL_CHILD_` prefix (Debug builds only):
 | `FOLIO_CHROME=1` | Show reader controls at launch |
 | `FOLIO_PANEL=contents\|appearance` | Open a panel at launch |
 | `FOLIO_THEME=paper\|sepia\|stone\|night` | Theme for this launch only |
+| `FOLIO_PROBE=1` | Print screen size, safe area and reserved regions (use `simctl launch --console-pty`) |
 
 ```bash
 xcodebuild -project Folio.xcodeproj -scheme Folio -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M5)' -derivedDataPath build build

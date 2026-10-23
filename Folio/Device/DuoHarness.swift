@@ -21,6 +21,33 @@ enum DebugFlags {
     static var theme: String? { environment["FOLIO_THEME"] }
 }
 
+/// Logs the screen's size, safe area and reserved regions whenever they change (`FOLIO_PROBE=1`).
+struct GeometryProbe: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onAppear { log(proxy) }
+                .onChange(of: proxy.size) { log(proxy) }
+                .onChange(of: proxy.safeAreaInsets) { log(proxy) }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    private func log(_ proxy: GeometryProxy) {
+        guard ProcessInfo.processInfo.environment["FOLIO_PROBE"] == "1" else { return }
+        var line = "[probe] size=\(proxy.size) safe=\(proxy.safeAreaInsets)"
+        if #available(iOS 27.1, *) {
+            for kind in [ReservedRegion.Kind.division, .occlusion] {
+                let regions = proxy.reservedRegions(kind: kind, options: .includeInactive)
+                let label = kind == .division ? "division" : "occlusion"
+                line += " \(label)=" + regions.map { "\($0.frame) active=\($0.isActive) margins=\($0.margins)" }.joined(separator: "; ")
+            }
+        }
+        print(line)
+    }
+}
+
 /// Stands in for the iPhone Duo until the iOS 27.1 simulator runtime is installed. It renders the app at
 /// the Duo's point sizes (inner 951 × 669 open, outer 466 × 678 closed) and simulates the crease.
 struct DuoHarness<Content: View>: View {

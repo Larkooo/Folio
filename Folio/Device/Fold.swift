@@ -26,12 +26,20 @@ extension EnvironmentValues {
 /// How a screen splits into pages: a spread either side of the fold (or the middle of a wide screen),
 /// or a single page.
 struct FoldLayout {
+    /// The laid-out area. With `fullScreen`, this is the whole screen and `safeArea` holds the insets
+    /// the content should keep controls out of; otherwise it is the safe area and `safeArea` is zero.
     let size: CGSize
+    let safeArea: EdgeInsets
     let isSpread: Bool
     let crease: CGRect
 
-    init(proxy: GeometryProxy, simulatedCreaseWidth: CGFloat?) {
-        size = proxy.size
+    init(proxy: GeometryProxy, simulatedCreaseWidth: CGFloat?, fullScreen: Bool = false) {
+        let insets = fullScreen ? proxy.safeAreaInsets : EdgeInsets()
+        safeArea = insets
+        size = CGSize(
+            width: proxy.size.width + insets.leading + insets.trailing,
+            height: proxy.size.height + insets.top + insets.bottom
+        )
         isSpread = size.width >= 640 && size.width > size.height * 1.15
 
         var division: CGRect?
@@ -41,6 +49,7 @@ struct FoldLayout {
             division = proxy.reservedRegions(kind: .division, options: .includeInactive)
                 .map(\.frame)
                 .first { $0.height > $0.width && $0.midX > 0 && $0.midX < proxy.size.width }
+                .map { $0.offsetBy(dx: insets.leading, dy: insets.top) }
         }
 
         if isSpread {

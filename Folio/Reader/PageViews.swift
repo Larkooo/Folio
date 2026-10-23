@@ -15,24 +15,34 @@ struct PageMetrics {
         isSpread ? min(fold.leftPage.width, fold.rightPage.width) : fold.size.width
     }
 
+    /// Pages run under the safe area (the paper fills the screen), so margins only grow where an inset is
+    /// larger than the margin itself. The running head then sits beside the camera rather than below it.
     func margins(for side: PageSide) -> EdgeInsets {
+        let safe = fold.safeArea
         let outer = max(24, (pageWidth * 0.075).rounded())
         let inner = max(20, (pageWidth * 0.06).rounded())
-        let top: CGFloat = 46
-        let bottom: CGFloat = 42
+        let top = max(46, safe.top)
+        let bottom = max(42, safe.bottom + 14)
+        let leadingOuter = max(outer, safe.leading + 12)
+        let trailingOuter = max(outer, safe.trailing + 12)
         switch side {
-        case .left: return EdgeInsets(top: top, leading: outer, bottom: bottom, trailing: inner)
-        case .right: return EdgeInsets(top: top, leading: inner, bottom: bottom, trailing: outer)
-        case .single: return EdgeInsets(top: top, leading: outer, bottom: bottom, trailing: outer)
+        case .left: return EdgeInsets(top: top, leading: leadingOuter, bottom: bottom, trailing: inner)
+        case .right: return EdgeInsets(top: top, leading: inner, bottom: bottom, trailing: trailingOuter)
+        case .single: return EdgeInsets(top: top, leading: leadingOuter, bottom: bottom, trailing: trailingOuter)
         }
     }
 
+    /// One size for every page, so both sides of a spread share a layout.
     var textSize: CGSize {
-        let margins = margins(for: isSpread ? .left : .single)
-        return CGSize(
-            width: floor(pageWidth - margins.leading - margins.trailing),
-            height: floor(fold.size.height - margins.top - margins.bottom)
-        )
+        let sides: [(PageSide, CGFloat)] = isSpread
+            ? [(.left, fold.leftPage.width), (.right, fold.rightPage.width)]
+            : [(.single, fold.size.width)]
+        let width = sides.map { side, pageWidth in
+            let margins = margins(for: side)
+            return pageWidth - margins.leading - margins.trailing
+        }.min() ?? 0
+        let margins = margins(for: sides[0].0)
+        return CGSize(width: floor(width), height: floor(fold.size.height - margins.top - margins.bottom))
     }
 
     func layoutKey(for style: TypeStyle) -> LayoutKey {

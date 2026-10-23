@@ -25,7 +25,9 @@ struct ReaderView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let metrics = PageMetrics(fold: FoldLayout(proxy: proxy, simulatedCreaseWidth: simulatedCreaseWidth))
+            // Measured inside the safe area so the insets are known, then laid out over the whole screen.
+            let fold = FoldLayout(proxy: proxy, simulatedCreaseWidth: simulatedCreaseWidth, fullScreen: true)
+            let metrics = PageMetrics(fold: fold)
             let key = metrics.layoutKey(for: settings.style)
 
             ZStack(alignment: .topLeading) {
@@ -35,7 +37,17 @@ struct ReaderView: View {
                         .animation(.easeOut(duration: 0.18), value: layout.key == key)
                 } else {
                     loading
-                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .frame(width: fold.size.width, height: fold.size.height)
+                }
+
+                if chromeVisible || panel != nil {
+                    // Fades the text out under the controls so the glass sits on paper, not on lines of type.
+                    let safe = fold.safeArea
+                    edgeFade(
+                        top: safe.top + (metrics.isSpread ? 104 : 112),
+                        bottom: safe.bottom + (metrics.isSpread ? 104 : 156),
+                        size: fold.size
+                    )
                 }
 
                 if let book = model.book, let layout = model.layout, layout.key == key {
@@ -46,7 +58,14 @@ struct ReaderView: View {
                     }
                 }
             }
+            .frame(width: fold.size.width, height: fold.size.height, alignment: .topLeading)
+            .ignoresSafeArea()
             .task(id: key) {
+                #if DEBUG
+                if ProcessInfo.processInfo.environment["FOLIO_PROBE"] == "1" {
+                    print("[probe] reader screen=\(fold.size) safe=\(fold.safeArea) spread=\(metrics.isSpread) crease=\(fold.crease) text=\(metrics.textSize)")
+                }
+                #endif
                 await model.prepare(url: library.epubURL(for: record), key: key)
             }
         }
@@ -132,6 +151,25 @@ struct ReaderView: View {
         .padding(32)
     }
 
+    private func edgeFade(top: CGFloat, bottom: CGFloat, size: CGSize) -> some View {
+        let paper = settings.theme.paper
+        let stops: [Gradient.Stop] = [
+            .init(color: paper, location: 0),
+            .init(color: paper.opacity(0.96), location: 0.68),
+            .init(color: paper.opacity(0), location: 1),
+        ]
+        return VStack(spacing: 0) {
+            LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom)
+                .frame(height: top)
+            Spacer(minLength: 0)
+            LinearGradient(stops: stops, startPoint: .bottom, endPoint: .top)
+                .frame(height: bottom)
+        }
+        .frame(width: size.width, height: size.height)
+        .allowsHitTesting(false)
+        .transition(.opacity)
+    }
+
     private func toggleChrome() {
         if panel != nil {
             panel = nil
@@ -145,6 +183,7 @@ struct ReaderView: View {
     @ViewBuilder
     private func spreadChrome(book: LoadedBook, layout: BookLayout, metrics: PageMetrics) -> some View {
         let fold = metrics.fold
+        let safe = fold.safeArea
         let inset: CGFloat = 14
 
         if chromeVisible || panel != nil {
@@ -167,6 +206,7 @@ struct ReaderView: View {
                 }
             }
             .padding(inset)
+            .padding(EdgeInsets(top: safe.top, leading: safe.leading, bottom: safe.bottom, trailing: 0))
             .frame(width: fold.leftPage.width, height: fold.size.height, alignment: .leading)
             .transition(.opacity)
 
@@ -188,6 +228,7 @@ struct ReaderView: View {
                 }
             }
             .padding(inset)
+            .padding(EdgeInsets(top: safe.top, leading: 0, bottom: safe.bottom, trailing: safe.trailing))
             .frame(width: fold.rightPage.width, height: fold.size.height, alignment: .trailing)
             .offset(x: fold.rightPage.minX)
             .transition(.opacity)
@@ -203,6 +244,7 @@ struct ReaderView: View {
             }
             .padding(.top, 72)
             .padding([.horizontal, .bottom], inset)
+            .padding(EdgeInsets(top: safe.top, leading: safe.leading, bottom: safe.bottom, trailing: 0))
             .frame(width: fold.leftPage.width, height: fold.size.height)
             .transition(.move(edge: .leading).combined(with: .opacity))
         }
@@ -212,6 +254,7 @@ struct ReaderView: View {
                 .frame(width: min(360, fold.rightPage.width - inset * 2))
                 .padding(.top, 72)
                 .padding(inset)
+                .padding(EdgeInsets(top: safe.top, leading: 0, bottom: safe.bottom, trailing: safe.trailing))
                 .frame(width: fold.rightPage.width, height: fold.size.height, alignment: .topTrailing)
                 .offset(x: fold.rightPage.minX)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -257,6 +300,7 @@ struct ReaderView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
+            .padding(metrics.fold.safeArea)
             .frame(width: size.width, height: size.height)
             .transition(.opacity)
         }
@@ -274,13 +318,14 @@ struct ReaderView: View {
                         } onClose: {
                             self.panel = nil
                         }
-                        .frame(height: size.height * 0.72)
+                        .frame(height: size.height * 0.68)
                     case .appearance:
                         AppearancePanel { self.panel = nil }
                     }
                 }
             }
             .padding(10)
+            .padding(metrics.fold.safeArea)
             .frame(width: size.width, height: size.height)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
