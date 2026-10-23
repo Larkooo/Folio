@@ -271,6 +271,7 @@ MainActor.assumeIsolated {
     try! FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
     let hero = load("open-paper-hero")
+    let heroWithControls = load("open-paper-chrome")
     let pageThree = load("open-paper-p3")
     let closed = load("closed-paper-p3")
     let night = load("open-night-contents")
@@ -279,7 +280,7 @@ MainActor.assumeIsolated {
 
     let single: CGFloat = 1.06 // the open Duo about 1060 pt wide on a 1600 pt canvas
 
-    render(Shot(background: hero) { OpenDuo(screen: hero, scale: single) }, to: "01-spread")
+    render(Shot(background: hero) { OpenDuo(screen: heroWithControls, scale: single) }, to: "01-spread")
 
     // Both phones at the same scale, so the closed one reads as the same device folded.
     render(Shot(background: pageThree) {
