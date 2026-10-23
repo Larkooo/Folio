@@ -157,6 +157,41 @@ struct OpenDuo: View {
     }
 }
 
+/// The Duo part-closed, for frames recorded mid-fold. The left half swings toward the viewer about the
+/// hinge, as a book cover does when it closes, so its screen turns away; that is the half iOS blurs. The
+/// right half stays nearly square to the viewer.
+struct FoldingDuo: View {
+    let screen: NSImage
+    let scale: CGFloat
+    /// How far the left half has turned, in degrees.
+    let fold: Double
+    /// A slight turn of the right half the other way, so the two meet in a shallow V.
+    var tilt: Double = 7
+
+    var body: some View {
+        let device = OpenDuo(screen: screen, scale: scale)
+        // Room around the device so the buttons are not clipped with the halves.
+        let size = CGSize(width: Duo.open.width * scale + 40, height: Duo.open.height * scale + 40)
+        let perspective = 0.3
+        ZStack {
+            device
+                .overlay {
+                    // The turned half catches less light; the shade stays within the device's outline.
+                    LinearGradient(colors: [.black.opacity(0.3), .black.opacity(0.06)], startPoint: .leading, endPoint: .center)
+                        .mask { device }
+                }
+                .frame(width: size.width, height: size.height)
+                .mask(alignment: .leading) { Rectangle().frame(width: size.width / 2) }
+                .rotation3DEffect(.degrees(fold), axis: (x: 0, y: 1, z: 0), anchor: .center, perspective: perspective)
+            device
+                .frame(width: size.width, height: size.height)
+                .mask(alignment: .trailing) { Rectangle().frame(width: size.width / 2) }
+                .rotation3DEffect(.degrees(-tilt), axis: (x: 0, y: 1, z: 0), anchor: .center, perspective: perspective)
+        }
+        .frame(width: size.width, height: size.height)
+    }
+}
+
 // MARK: - Scene
 
 /// The pages themselves, enlarged and out of focus, behind the phone.
@@ -219,8 +254,7 @@ MainActor.assumeIsolated {
 
     let hero = load("open-paper-hero")
     let heroWithControls = load("open-paper-chrome")
-    let pageThree = load("open-paper-p3")
-    let closed = load("closed-paper-p3")
+    let closedWithControls = load("closed-paper-ch3-chrome")
     let night = load("open-night-contents")
     let library = load("open-paper-library")
     let sepia = load("open-sepia-appearance")
@@ -233,16 +267,17 @@ MainActor.assumeIsolated {
     render(Shot(background: hero) { OpenDuo(screen: heroWithControls, scale: single) }, to: "01-spread")
 
     // Both phones at the same scale, so the closed one reads as the same device folded.
-    render(Shot(background: pageThree) {
+    // The same page closed and open, both with the reader controls showing.
+    render(Shot(background: hero) {
         HStack(alignment: .center, spacing: 70) {
-            ClosedDuo(screen: closed, scale: 0.92)
-            OpenDuo(screen: pageThree, scale: 0.92)
+            ClosedDuo(screen: closedWithControls, scale: 0.92)
+            OpenDuo(screen: heroWithControls, scale: 0.92)
         }
     }, to: "02-fold")
 
     render(Shot(background: night, tone: 0.1, glow: 0.16) { OpenDuo(screen: night, scale: single) }, to: "03-contents")
     render(Shot(background: hero) { OpenDuo(screen: library, scale: single) }, to: "04-library")
     render(Shot(background: sepia) { OpenDuo(screen: sepia, scale: single) }, to: "05-appearance")
-    render(Shot(background: hero) { OpenDuo(screen: foldSlight, scale: single) }, to: "06-fold")
-    render(Shot(background: hero) { OpenDuo(screen: foldDeep, scale: single) }, to: "07-fold-deep")
+    render(Shot(background: hero) { FoldingDuo(screen: foldSlight, scale: 0.94, fold: 34) }, to: "06-fold")
+    render(Shot(background: hero) { FoldingDuo(screen: foldDeep, scale: 0.94, fold: 50) }, to: "07-fold-deep")
 }
