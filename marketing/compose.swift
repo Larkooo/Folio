@@ -113,9 +113,6 @@ struct ClosedDuo: View {
 struct OpenDuo: View {
     let screen: NSImage
     let scale: CGFloat
-    /// 0 is flat. Above 0, the left half is folded away from the viewer: blurred and shaded, as DeviceHub
-    /// shows the Duo part-closed.
-    var fold: Double = 0
 
     var body: some View {
         let s = scale
@@ -150,63 +147,13 @@ struct OpenDuo: View {
             RoundedRectangle(cornerRadius: 66 * s, style: .continuous)
                 .fill(Color.black)
                 .place(screenRect.insetBy(dx: -11, dy: -11), scale: s)
-            ZStack {
-                Image(nsImage: screen)
-                    .resizable()
-                    .interpolation(.high)
-                if fold > 0 {
-                    FoldedHalf(screen: screen, fold: fold, scale: s)
-                }
-            }
-            .clipShape(screenShape)
+            Image(nsImage: screen)
+                .resizable()
+                .interpolation(.high)
+                .clipShape(screenShape)
             .place(screenRect, scale: s)
         }
         .frame(width: size.width * s, height: size.height * s, alignment: .topLeading)
-    }
-}
-
-/// The left half of the inner screen turned away from the viewer: out of focus, darker toward its outer edge
-/// and along the top and bottom where the panel bends away.
-struct FoldedHalf: View {
-    let screen: NSImage
-    let fold: Double
-    let scale: CGFloat
-
-    var body: some View {
-        GeometryReader { proxy in
-            let half = proxy.size.width / 2
-            ZStack(alignment: .leading) {
-                Image(nsImage: screen)
-                    .resizable()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .blur(radius: 9 * scale * fold, opaque: true)
-                    .frame(width: half, height: proxy.size.height, alignment: .leading)
-                    .clipped()
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.88 * fold), location: 0),
-                        .init(color: .black.opacity(0.55 * fold), location: 0.25),
-                        .init(color: .black.opacity(0.15 * fold), location: 0.62),
-                        .init(color: .black.opacity(0.02 * fold), location: 1),
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: half)
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.55 * fold), location: 0),
-                        .init(color: .clear, location: 0.22),
-                        .init(color: .clear, location: 0.78),
-                        .init(color: .black.opacity(0.55 * fold), location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(width: half)
-                .mask(LinearGradient(colors: [.black, .black.opacity(0.2)], startPoint: .leading, endPoint: .trailing))
-            }
-        }
     }
 }
 
@@ -277,6 +224,9 @@ MainActor.assumeIsolated {
     let night = load("open-night-contents")
     let library = load("open-paper-library")
     let sepia = load("open-sepia-appearance")
+    // Frames from a Device Hub screen recording of the Duo folding: iOS draws the blur and curve.
+    let foldSlight = load("open-fold-slight")
+    let foldDeep = load("open-fold-deep")
 
     let single: CGFloat = 1.06 // the open Duo about 1060 pt wide on a 1600 pt canvas
 
@@ -293,4 +243,6 @@ MainActor.assumeIsolated {
     render(Shot(background: night, tone: 0.1, glow: 0.16) { OpenDuo(screen: night, scale: single) }, to: "03-contents")
     render(Shot(background: hero) { OpenDuo(screen: library, scale: single) }, to: "04-library")
     render(Shot(background: sepia) { OpenDuo(screen: sepia, scale: single) }, to: "05-appearance")
+    render(Shot(background: hero) { OpenDuo(screen: foldSlight, scale: single) }, to: "06-fold")
+    render(Shot(background: hero) { OpenDuo(screen: foldDeep, scale: single) }, to: "07-fold-deep")
 }
