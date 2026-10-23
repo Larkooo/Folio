@@ -96,8 +96,10 @@ struct LibraryView: View {
                         .font(.system(size: 20, weight: .semibold, design: .serif))
                         .foregroundStyle(settings.theme.ink)
                         .padding(.top, 4)
+                    shelf(columns: 3, excluding: library.recentBook?.id)
+                } else if library.recentBook != nil {
+                    addPrompt
                 }
-                shelf(columns: 2, excluding: library.recentBook?.id)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -142,6 +144,27 @@ struct LibraryView: View {
                 }
             }
             AddBookTile(theme: settings.theme) { isImporterPresented = true }
+        }
+    }
+
+    private var addPrompt: some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Add more books")
+                    .font(.system(size: 17, design: .serif))
+                    .foregroundStyle(settings.theme.ink)
+                Text("Folio opens EPUB files from Files, AirDrop and other apps.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(settings.theme.secondaryInk)
+            }
+            Spacer(minLength: 0)
+            Button("Add") { isImporterPresented = true }
+                .buttonStyle(.glass)
+        }
+        .padding(18)
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(settings.theme.secondaryInk.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
         }
     }
 
