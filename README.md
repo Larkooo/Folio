@@ -125,7 +125,7 @@ Pass these to `simctl launch` with a `SIMCTL_CHILD_` prefix. They only work in D
 | `Folio/Library` | The library store and screens. Each book lives in its own folder in Application Support |
 | `Folio/Device` | Fold handling and the simulated Duo used for testing |
 | `Folio/App` | The UIKit entry point that hosts the SwiftUI app |
-| `tools` | Scripts that build the sample book and draw the app icon |
+| `tools` | The script that builds the bundled sample book |
 | `marketing` | The script that frames simulator captures in the Duo artwork from Xcode |
 
 ## License
