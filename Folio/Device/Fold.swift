@@ -40,7 +40,7 @@ struct FoldLayout {
             width: proxy.size.width + insets.leading + insets.trailing,
             height: proxy.size.height + insets.top + insets.bottom
         )
-        isSpread = size.width >= 640 && size.width > size.height * 1.15
+        isSpread = Self.isSpread(size)
 
         var division: CGRect?
         if let width = simulatedCreaseWidth {
@@ -58,6 +58,11 @@ struct FoldLayout {
         } else {
             crease = .zero
         }
+    }
+
+    /// Wide enough, and wide rather than tall, for two pages side by side.
+    static func isSpread(_ size: CGSize) -> Bool {
+        size.width >= 640 && size.width > size.height * 1.15
     }
 
     var leftPage: CGRect {

@@ -2,7 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Open, the library spreads across the fold: the current book on the left page, the shelf on the right.
-/// Closed, it becomes a single column.
+/// Closed, it is a single column: the book you are reading, then a row of covers.
+///
+/// "Add a Book" is a toolbar item, so on the Duo it moves into the vertical bar next to the clock.
 struct LibraryView: View {
     var onOpen: (BookRecord) -> Void
 
@@ -10,19 +12,40 @@ struct LibraryView: View {
     @Environment(ReaderSettings.self) private var settings
     @Environment(\.simulatedCreaseWidth) private var simulatedCreaseWidth
 
+    @State private var isSpread = false
     @State private var isImporterPresented = false
     @State private var pendingRemoval: BookRecord?
 
     var body: some View {
-        GeometryReader { proxy in
-            let fold = FoldLayout(proxy: proxy, simulatedCreaseWidth: simulatedCreaseWidth)
-            if fold.isSpread {
-                openLayout(fold)
-            } else {
-                closedLayout
+        NavigationStack {
+            Group {
+                if isSpread {
+                    GeometryReader { proxy in
+                        openLayout(FoldLayout(proxy: proxy, simulatedCreaseWidth: simulatedCreaseWidth))
+                    }
+                } else {
+                    closedLayout
+                }
             }
+            .background(settings.theme.paper.ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    if library.isImporting {
+                        ProgressView()
+                    } else {
+                        Button("Add a Book", systemImage: "plus") { isImporterPresented = true }
+                    }
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(settings.theme.colorScheme, for: .navigationBar)
         }
-        .background(settings.theme.paper.ignoresSafeArea())
+        .onGeometryChange(for: Bool.self) { proxy in
+            FoldLayout.isSpread(proxy.size)
+        } action: { spread in
+            isSpread = spread
+        }
         .environment(\.colorScheme, settings.theme.colorScheme)
         .fileImporter(isPresented: $isImporterPresented, allowedContentTypes: [.epub], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result {
@@ -55,7 +78,7 @@ struct LibraryView: View {
         ZStack(alignment: .topLeading) {
             Group {
                 if let book = library.recentBook {
-                    ReadingNow(book: book, cover: library.cover(for: book), style: .spread) { onOpen(book) }
+                    ReadingNow(book: book, cover: library.cover(for: book)) { onOpen(book) }
                 } else {
                     emptyState
                 }
@@ -64,13 +87,25 @@ struct LibraryView: View {
             .frame(width: fold.leftPage.width, height: fold.size.height)
 
             VStack(alignment: .leading, spacing: 18) {
-                header
+                title
                     .padding(.horizontal, 28)
-                    .padding(.top, 24)
+                    .padding(.top, 12)
                 ScrollView {
-                    shelf(columns: 3)
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 28)
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 18, alignment: .top), count: 3),
+                        alignment: .leading,
+                        spacing: 26
+                    ) {
+                        ForEach(library.books) { book in
+                            BookTile(book: book, cover: library.cover(for: book), theme: settings.theme) {
+                                onOpen(book)
+                            }
+                            .contextMenu { removeButton(for: book) }
+                        }
+                        AddCover(theme: settings.theme) { isImporterPresented = true }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 28)
                 }
                 .scrollIndicators(.hidden)
                 .scrollEdgeEffectStyle(.soft, for: .top)
@@ -83,67 +118,60 @@ struct LibraryView: View {
     // MARK: - Closed
 
     private var closedLayout: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                header
+        let others = library.books.filter { $0.id != library.recentBook?.id }
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 34) {
+                title
+                    .padding(.bottom, -12)
                 if let book = library.recentBook {
-                    ReadingNow(book: book, cover: library.cover(for: book), style: .card) { onOpen(book) }
+                    ContinueReading(book: book, cover: library.cover(for: book), theme: settings.theme) {
+                        onOpen(book)
+                    }
                 } else {
                     emptyState
                 }
-                if library.books.count > 1 {
-                    Text("All Books")
-                        .font(.system(size: 20, weight: .semibold, design: .serif))
-                        .foregroundStyle(settings.theme.ink)
-                        .padding(.top, 4)
-                    shelf(columns: 3, excluding: library.recentBook?.id)
+
+                if !others.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Your Books")
+                            .font(.system(size: 20, weight: .semibold, design: .serif))
+                            .foregroundStyle(settings.theme.ink)
+                        LazyVGrid(
+                            columns: Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: 3),
+                            spacing: 20
+                        ) {
+                            ForEach(others) { book in
+                                ShelfCover(book: book, cover: library.cover(for: book), theme: settings.theme) {
+                                    onOpen(book)
+                                }
+                                .contextMenu { removeButton(for: book) }
+                            }
+                            AddCover(theme: settings.theme) { isImporterPresented = true }
+                        }
+                    }
                 } else if library.recentBook != nil {
                     addPrompt
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.top, 6)
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .top)
     }
 
     // MARK: - Pieces
 
-    private var header: some View {
-        HStack(alignment: .center) {
-            Text("Library")
-                .font(.system(size: 32, weight: .semibold, design: .serif))
-            Spacer()
-            if library.isImporting {
-                ProgressView()
-                    .padding(.trailing, 6)
-            }
-            GlassIconButton(systemName: "plus", label: "Add a book") {
-                isImporterPresented = true
-            }
-        }
-        .foregroundStyle(settings.theme.ink)
+    private var title: some View {
+        Text("Library")
+            .font(.system(size: 34, weight: .semibold, design: .serif))
+            .foregroundStyle(settings.theme.ink)
+            .accessibilityAddTraits(.isHeader)
     }
 
-    private func shelf(columns: Int, excluding excluded: UUID? = nil) -> some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 18, alignment: .top), count: columns),
-            alignment: .leading,
-            spacing: 26
-        ) {
-            ForEach(library.books.filter { $0.id != excluded }) { book in
-                BookTile(book: book, cover: library.cover(for: book), theme: settings.theme) {
-                    onOpen(book)
-                }
-                .contextMenu {
-                    Button("Remove from Library", systemImage: "trash", role: .destructive) {
-                        pendingRemoval = book
-                    }
-                }
-            }
-            AddBookTile(theme: settings.theme) { isImporterPresented = true }
+    private func removeButton(for book: BookRecord) -> some View {
+        Button("Remove from Library", systemImage: "trash", role: .destructive) {
+            pendingRemoval = book
         }
     }
 
@@ -184,90 +212,125 @@ struct LibraryView: View {
     }
 }
 
+/// The open library's left page: the current book, large and centred.
 private struct ReadingNow: View {
-    enum Style { case spread, card }
-
     let book: BookRecord
     let cover: UIImage?
-    let style: Style
     let onOpen: () -> Void
 
     @Environment(ReaderSettings.self) private var settings
 
     var body: some View {
-        switch style {
-        case .spread:
-            VStack(spacing: 22) {
+        VStack(spacing: 22) {
+            Button(action: onOpen) {
+                CoverView(book: book, image: cover)
+                    .frame(height: 300)
+            }
+            .buttonStyle(.plain)
+            VStack(spacing: 6) {
+                Text(book.title)
+                    .font(.system(size: 26, weight: .regular, design: .serif))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                Text(book.author)
+                    .font(.system(size: 15))
+                    .foregroundStyle(settings.theme.secondaryInk)
+            }
+            VStack(spacing: 6) {
+                ProgressBar(value: book.progress, theme: settings.theme)
+                Text(progressLabel(book))
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(settings.theme.secondaryInk)
+            }
+            .frame(width: 220)
+            Button(action: onOpen) {
+                Text(book.progress > 0 ? "Continue Reading" : "Start Reading")
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+        }
+        .foregroundStyle(settings.theme.ink)
+    }
+}
+
+/// The closed library's first row: the cover beside the title, progress and a button to carry on.
+private struct ContinueReading: View {
+    let book: BookRecord
+    let cover: UIImage?
+    let theme: ReaderTheme
+    let onOpen: () -> Void
+
+    private let coverWidth: CGFloat = 124
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 18) {
+            Button(action: onOpen) {
+                CoverView(book: book, image: cover)
+                    .frame(width: coverWidth)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(book.title), \(book.author)")
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Reading Now")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(theme.secondaryInk)
+                Text(book.title)
+                    .font(.system(size: 22, design: .serif))
+                    .foregroundStyle(theme.ink)
+                    .lineLimit(2)
+                    .padding(.top, 6)
+                Text(book.author)
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.secondaryInk)
+                    .lineLimit(1)
+                    .padding(.top, 4)
+                Spacer(minLength: 12)
+                ProgressBar(value: book.progress, theme: theme)
+                Text(progressLabel(book))
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(theme.secondaryInk)
+                    .padding(.top, 6)
                 Button(action: onOpen) {
-                    CoverView(book: book, image: cover)
-                        .frame(height: 300)
-                }
-                .buttonStyle(.plain)
-                VStack(spacing: 6) {
-                    Text(book.title)
-                        .font(.system(size: 26, weight: .regular, design: .serif))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                    Text(book.author)
-                        .font(.system(size: 15))
-                        .foregroundStyle(settings.theme.secondaryInk)
-                }
-                progress
-                    .frame(width: 220)
-                Button(action: onOpen) {
-                    Text(book.progress > 0 ? "Continue Reading" : "Start Reading")
+                    Text(book.progress > 0 ? "Continue" : "Start Reading")
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
                 }
                 .buttonStyle(.glassProminent)
-                .controlSize(.large)
+                .padding(.top, 14)
             }
-            .foregroundStyle(settings.theme.ink)
-        case .card:
-            HStack(alignment: .center, spacing: 18) {
-                Button(action: onOpen) {
-                    CoverView(book: book, image: cover)
-                        .frame(width: 112)
-                }
-                .buttonStyle(.plain)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Reading Now")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(settings.theme.secondaryInk)
-                    Text(book.title)
-                        .font(.system(size: 21, design: .serif))
-                        .lineLimit(3)
-                    Text(book.author)
-                        .font(.system(size: 14))
-                        .foregroundStyle(settings.theme.secondaryInk)
-                        .lineLimit(1)
-                    progress
-                        .padding(.top, 6)
-                    Button(action: onOpen) {
-                        Text(book.progress > 0 ? "Continue" : "Start Reading")
-                            .foregroundStyle(.white)
-                    }
-                    .buttonStyle(.glassProminent)
-                        .padding(.top, 8)
-                }
-            }
-            .foregroundStyle(settings.theme.ink)
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        }
-    }
-
-    private var progress: some View {
-        VStack(alignment: style == .spread ? .center : .leading, spacing: 6) {
-            ProgressBar(value: book.progress, theme: settings.theme)
-            Text(book.progress > 0 ? "\(Int((book.progress * 100).rounded()))% read" : "Not started")
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(settings.theme.secondaryInk)
+            .frame(height: coverWidth * 1.5, alignment: .topLeading)
         }
     }
 }
 
+private func progressLabel(_ book: BookRecord) -> String {
+    book.progress > 0 ? "\(Int((book.progress * 100).rounded()))% read" : "Not started"
+}
+
+/// A cover on the closed library's shelf. The cover already carries the title, so there is no caption.
+private struct ShelfCover: View {
+    let book: BookRecord
+    let cover: UIImage?
+    let theme: ReaderTheme
+    let onOpen: () -> Void
+
+    var body: some View {
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 8) {
+                CoverView(book: book, image: cover)
+                if book.progress > 0 {
+                    ProgressBar(value: book.progress, theme: theme)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(book.title), \(book.author)")
+    }
+}
+
+/// A cover with its title and author underneath, for the open library's grid.
 private struct BookTile: View {
     let book: BookRecord
     let cover: UIImage?
@@ -297,25 +360,21 @@ private struct BookTile: View {
     }
 }
 
-private struct AddBookTile: View {
+private struct AddCover: View {
     let theme: ReaderTheme
     let onAdd: () -> Void
 
     var body: some View {
         Button(action: onAdd) {
-            VStack(alignment: .leading, spacing: 8) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(theme.secondaryInk.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                    .aspectRatio(2.0 / 3.0, contentMode: .fit)
-                    .overlay {
-                        Image(systemName: "plus")
-                            .font(.system(size: 22, weight: .light))
-                            .foregroundStyle(theme.secondaryInk)
-                    }
-                Text("Add a Book")
-                    .font(.system(size: 14, weight: .medium, design: .serif))
-                    .foregroundStyle(theme.secondaryInk)
-            }
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .strokeBorder(theme.secondaryInk.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .light))
+                        .foregroundStyle(theme.secondaryInk)
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add a book")
