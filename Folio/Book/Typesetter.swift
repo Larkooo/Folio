@@ -79,7 +79,9 @@ enum Typesetter {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineHeightMultiple = style.spacing.multiple
         paragraph.alignment = style.justified ? .justified : .natural
-        paragraph.hyphenationFactor = style.justified ? 0.9 : 0.3
+        // Justified lines stretch their spaces, so hyphenate whenever it helps rather than only on very
+        // short lines.
+        paragraph.hyphenationFactor = style.justified ? 1.0 : 0.3
 
         switch kind {
         case .paragraph:

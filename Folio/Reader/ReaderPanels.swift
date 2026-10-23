@@ -39,7 +39,7 @@ struct ContentsPanel: View {
                                 .background {
                                     if entry.id == currentEntry {
                                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .fill(.primary.opacity(0.07))
+                                            .fill(.primary.opacity(0.11))
                                     }
                                 }
                                 .contentShape(Rectangle())
