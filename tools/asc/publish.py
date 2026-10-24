@@ -281,10 +281,15 @@ def cmd_pricing(asc):
     a = app(asc)
     asc.patch(f"/v1/apps/{a['id']}", "apps", a["id"], {"contentRightsDeclaration": META["contentRights"]})
     print(f"  content rights: {META['contentRights']}")
+    # A new app already has an empty price schedule, so look for actual prices on it.
     try:
-        asc.get(f"/v1/apps/{a['id']}/appPriceSchedule")
-        print("  price schedule already set")
+        schedule = asc.get(f"/v1/apps/{a['id']}/appPriceSchedule")["data"]
+        priced = bool(asc.get(f"/v1/appPriceSchedules/{schedule['id']}/manualPrices")["data"])
     except RuntimeError:
+        priced = False
+    if priced:
+        print("  price schedule already set")
+    else:
         points = asc.get_all(f"/v1/apps/{a['id']}/appPricePoints", **{"filter[territory]": "USA", "limit": 200})
         free = next(p for p in points if float(p["attributes"]["customerPrice"]) == 0)
         asc.call("POST", "/v1/appPriceSchedules", json={"data": {
@@ -389,7 +394,7 @@ def cmd_submit(asc):
     # A submission already in the queue is withdrawn; its items come along.
     # Withdrawal is asynchronous, and the version cannot take a new build
     # until it has gone through.
-    carried, withdrawn = [], []
+    carried, withdrawn, unsent = [], [], None
     open_states = {"READY_FOR_REVIEW", "WAITING_FOR_REVIEW", "IN_REVIEW", "UNRESOLVED_ISSUES"}
     subs = asc.get(f"/v1/apps/{a['id']}/reviewSubmissions", **{"filter[platform]": "IOS"})["data"]
     subs.sort(key=lambda s: s["attributes"].get("submittedDate") or "", reverse=True)
@@ -406,8 +411,9 @@ def cmd_submit(asc):
                     if entry not in carried:
                         carried.append(entry)
         if sub["attributes"]["state"] == "READY_FOR_REVIEW":
-            asc.delete(f"/v1/reviewSubmissions/{sub['id']}")
-            print(f"  removed the unsubmitted submission {sub['id']}")
+            # The API cannot delete a submission that was never sent, so it is reused.
+            unsent = sub
+            print(f"  reusing the unsent submission {sub['id']}")
         elif sub["attributes"]["state"] in open_states:
             asc.patch(f"/v1/reviewSubmissions/{sub['id']}", "reviewSubmissions", sub["id"], {"canceled": True})
             print(f"  withdrew submission {sub['id']} ({sub['attributes']['state']})")
@@ -440,9 +446,17 @@ def cmd_submit(asc):
             time.sleep(15)
     print(f"  build {number} attached to version {version['attributes']['versionString']}")
 
-    submission = asc.post("/v1/reviewSubmissions", "reviewSubmissions", {"platform": "IOS"}, {"app": rel("apps", a["id"])})
+    submission = unsent or asc.post("/v1/reviewSubmissions", "reviewSubmissions", {"platform": "IOS"}, {"app": rel("apps", a["id"])})
+    present = set()
+    if unsent:
+        for item in asc.get(f"/v1/reviewSubmissions/{submission['id']}/items")["data"]:
+            for kind, link in item.get("relationships", {}).items():
+                if link.get("data"):
+                    present.add((kind, link["data"]["type"], link["data"]["id"]))
     items = [("appStoreVersion", "appStoreVersions", vid)] + carried
     for kind, type_, id_ in items:
+        if (kind, type_, id_) in present:
+            continue
         asc.post("/v1/reviewSubmissionItems", "reviewSubmissionItems", None,
                  {"reviewSubmission": rel("reviewSubmissions", submission["id"]), kind: rel(type_, id_)})
     submitted = asc.patch(f"/v1/reviewSubmissions/{submission['id']}", "reviewSubmissions", submission["id"], {"submitted": True})
