@@ -5,3 +5,5 @@ xcuserdata/
 .DS_Store
 *.profraw
 marketing/demo-books/
+tools/asc/contact.local.json
+tools/asc/__pycache__/

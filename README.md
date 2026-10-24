@@ -95,7 +95,7 @@ If you do not have the iOS 27.1 runtime, Folio can draw a simulated Duo inside a
 
 ```bash
 SIMCTL_CHILD_FOLIO_DUO=1 SIMCTL_CHILD_FOLIO_POSTURE=open \
-  xcrun simctl launch --terminate-running-process booted com.nasr.folio
+  xcrun simctl launch --terminate-running-process booted com.nsrdm.folio
 ```
 
 <details>

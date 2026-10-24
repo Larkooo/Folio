@@ -1,0 +1,51 @@
+{
+  "bundleId": "com.nsrdm.folio",
+  "locale": "en-US",
+  "appInfo": {
+    "subtitle": "An EPUB reader for iPhone Duo",
+    "privacyPolicyUrl": "https://github.com/Larkooo/Folio/blob/main/PRIVACY.md",
+    "primaryCategory": "BOOKS",
+    "secondaryCategory": null
+  },
+  "version": {
+    "versionString": "1.0",
+    "copyright": "2026 Nasr Djeghmoum",
+    "description": "Folio is a reader for EPUB books, made for the iPhone Duo. When the phone is open, a book is set as two facing pages on either side of the fold, the way a printed book lies open in your hands. When you close it, you keep reading on the outer screen from the same page.\n\nThe pages are set the way a printed book is. Text is justified and hyphenated, and each chapter opens with a few words in small caps. You can choose from four page colors and five typefaces, and you can change the text size and line spacing.\n\nTap the middle of a page to show the reading controls. You can open the table of contents or move through the book with a slider. On the open phone, every control stays clear of the fold.\n\nFolio opens EPUB files without DRM. You can add books from the Files app, or open a book in Folio from another app. A short story is included so you have something to read right away. Books that other stores protect with DRM cannot be opened.\n\nFolio also runs on other iPhone and iPad models. On a wide screen, it shows two pages side by side.\n\nYour books and your place in them stay on your device. Folio does not use accounts or analytics, and its source code is published on GitHub.",
+    "keywords": "epub,ebook,book reader,reading,books,foldable,fold,duo,two page,spread,novel,library",
+    "supportUrl": "https://github.com/Larkooo/Folio/issues",
+    "marketingUrl": "https://github.com/Larkooo/Folio",
+    "promotionalText": "Folio sets your books as two facing pages on the open iPhone Duo, and it keeps your place when you fold the phone.",
+    "whatsNew": "First release."
+  },
+  "review": {
+    "demoAccountRequired": false,
+    "notes": "Folio is an EPUB reader. A short sample book, The Harbour Light, is included and appears in the library on first launch, so no account or file is needed to review the app. To add more books, tap the plus button and choose an EPUB file in Files, or open an EPUB file in Folio from another app.\n\nOn the iPhone Duo, the open inner screen shows two facing pages on either side of the fold, and the closed outer screen shows a single page. On other iPhone models, the reader shows one page in portrait and two pages in landscape. On iPad, it shows two pages in landscape. Tap the middle of a page to show the reading controls.\n\nFolio makes no network requests and collects no data."
+  },
+  "ageRating": {
+    "advertising": false,
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "contests": "NONE",
+    "gambling": false,
+    "gamblingSimulated": "NONE",
+    "gunsOrOtherWeapons": "NONE",
+    "healthOrWellnessTopics": false,
+    "lootBox": false,
+    "medicalOrTreatmentInformation": "NONE",
+    "messagingAndChat": false,
+    "parentalControls": false,
+    "profanityOrCrudeHumor": "NONE",
+    "ageAssurance": false,
+    "sexualContentGraphicAndNudity": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "socialMedia": false,
+    "socialMediaAgeRestricted": false,
+    "horrorOrFearThemes": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "unrestrictedWebAccess": false,
+    "userGeneratedContent": false,
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "violenceRealistic": "NONE"
+  },
+  "contentRights": "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+}
