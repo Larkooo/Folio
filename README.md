@@ -9,6 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/folio-ebook-reader/id6826603251">
+    <img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" height="48" alt="Download Folio on the App Store">
+  </a>
+</p>
+
+<p align="center">
   <img src="marketing/twitter/01-spread.jpg" alt="Folio on an open iPhone Duo, showing the opening of Chapter Three as a two-page spread with Liquid Glass controls">
 </p>
 
